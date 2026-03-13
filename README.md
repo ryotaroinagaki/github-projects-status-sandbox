@@ -28,6 +28,8 @@ GitHub Projects v2 の `Status` 自動更新を、自分の検証用 Project と
 - `マージ待ち`
 - `完了`
 
+PR 作成時には、PR 作成者が自動で assignee に追加されます。
+
 ## workflow の設定値
 
 [.github/workflows/project-status-sandbox.yml](/Users/ryotaroinagaki/my-app/github-projects-status-sandbox/.github/workflows/project-status-sandbox.yml) の `env` を書き換えます。
@@ -76,12 +78,13 @@ GitHub Projects v2 の `Status` 自動更新を、自分の検証用 Project と
 ## 検証シナリオ
 
 1. PR を作成して `作業中` になる
-2. 一般レビュワーを request して `1次レビュー中` になる
-3. 最終レビュワーを request して `最終レビュー中` になる
-4. 最終レビュワーが `changes_requested` を返して `最終レビュー対応中` になる
-5. 修正後に最終レビュワーへ再 request して `最終レビュー中` に戻る
-6. 最終レビュワーが `approved` を返して `マージ待ち` になる
-7. merge して `完了` になる
+2. PR 作成者が assignee に入る
+3. 一般レビュワーを request して `1次レビュー中` になる
+4. 最終レビュワーを request して `最終レビュー中` になる
+5. 最終レビュワーが `changes_requested` を返して `最終レビュー対応中` になる
+6. 修正後に最終レビュワーへ再 request して `最終レビュー中` に戻る
+7. 最終レビュワーが `approved` を返して `マージ待ち` になる
+8. merge して `完了` になる
 
 補足:
 
@@ -120,13 +123,14 @@ GitHub Projects v2 の `Status` 自動更新を、自分の検証用 Project と
 
 - `demo-change.txt` を編集してブランチを切る
 - PR を作成する
+- PR の assignee に作成者自身が自動追加されることを確認する
 - Actions が走った後、Project の Status が `作業中` になることを確認する
 
 ### 5. 最終レビューのループを試す
 
 - 最終レビュワーを request して `最終レビュー中` になることを確認する
 - 最終レビュワーが `changes_requested` を返して `最終レビュー対応中` になることを確認する
-- PR 作成者が修正して push するgit
+- PR 作成者が修正して push する
 - その時点ではステータスが変わらないことを確認する
 - 最終レビュワーに再度 request して `最終レビュー中` に戻ることを確認する
 - 最終レビュワーが `approved` を返して `マージ待ち` になることを確認する
