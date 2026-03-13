@@ -26,11 +26,6 @@ env:
 jobs:
   update-status:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: read
-      repository-projects: write
     steps:
       - name: Update project status in sandbox project
         uses: actions/github-script@v7
@@ -59,16 +54,13 @@ jobs:
             }
 
             requireConfig(config.finalReviewerLogin, "FINAL_REVIEWER_LOGIN");
+            requireConfig(config.projectId, "PROJECT_ID");
             requireConfig(config.statusNames.inProgress, "STATUS_IN_PROGRESS");
             requireConfig(config.statusNames.firstReview, "STATUS_FIRST_REVIEW");
             requireConfig(config.statusNames.finalReview, "STATUS_FINAL_REVIEW");
             requireConfig(config.statusNames.finalReviewFix, "STATUS_FINAL_REVIEW_FIX");
             requireConfig(config.statusNames.awaitingMerge, "STATUS_AWAITING_MERGE");
             requireConfig(config.statusNames.done, "STATUS_DONE");
-
-            function getProjectNode(result) {
-              return result?.organization?.projectV2 ?? result?.user?.projectV2 ?? null;
-            }
 
             function isSameRepositoryPullRequest(payload) {
               const headRepository = payload.pull_request?.head?.repo?.full_name;
@@ -129,35 +121,6 @@ jobs:
               return null;
             }
 
-            async function fetchProjectId() {
-              if (config.projectId) {
-                return config.projectId;
-              }
-
-              const query = `
-                query($login: String!, $number: Int!) {
-                  organization(login: $login) {
-                    projectV2(number: $number) {
-                      id
-                    }
-                  }
-                  user(login: $login) {
-                    projectV2(number: $number) {
-                      id
-                    }
-                  }
-                }
-              `;
-
-              const result = await github.graphql(query, {
-                login: config.projectOwnerLogin,
-                number: config.projectNumber,
-              });
-              const project = getProjectNode(result);
-
-              return project?.id ?? null;
-            }
-
             async function fetchStatusField(projectId) {
               const query = `
                 query($projectId: ID!) {
@@ -192,79 +155,10 @@ jobs:
             }
 
             async function findProjectItemId(pullRequestNodeId) {
-              if (config.projectId) {
-                const query = `
-                  query($projectId: ID!, $after: String) {
-                    node(id: $projectId) {
-                      ... on ProjectV2 {
-                        items(first: 100, after: $after) {
-                          nodes {
-                            id
-                            content {
-                              __typename
-                              ... on PullRequest {
-                                id
-                              }
-                            }
-                          }
-                          pageInfo {
-                            hasNextPage
-                            endCursor
-                          }
-                        }
-                      }
-                    }
-                  }
-                `;
-
-                let after = null;
-
-                while (true) {
-                  const result = await github.graphql(query, {
-                    projectId: config.projectId,
-                    after,
-                  });
-                  const items = result?.node?.items?.nodes ?? [];
-                  const match = items.find(
-                    (item) => item?.content?.__typename === "PullRequest" && item.content.id === pullRequestNodeId
-                  );
-
-                  if (match) {
-                    return match.id;
-                  }
-
-                  const pageInfo = result?.node?.items?.pageInfo;
-                  if (!pageInfo?.hasNextPage) {
-                    return null;
-                  }
-
-                  after = pageInfo.endCursor;
-                }
-              }
-
               const query = `
-                query($login: String!, $number: Int!, $after: String) {
-                  organization(login: $login) {
-                    projectV2(number: $number) {
-                      items(first: 100, after: $after) {
-                        nodes {
-                          id
-                          content {
-                            __typename
-                            ... on PullRequest {
-                              id
-                            }
-                          }
-                        }
-                        pageInfo {
-                          hasNextPage
-                          endCursor
-                        }
-                      }
-                    }
-                  }
-                  user(login: $login) {
-                    projectV2(number: $number) {
+                query($projectId: ID!, $after: String) {
+                  node(id: $projectId) {
+                    ... on ProjectV2 {
                       items(first: 100, after: $after) {
                         nodes {
                           id
@@ -289,12 +183,10 @@ jobs:
 
               while (true) {
                 const result = await github.graphql(query, {
-                  login: config.projectOwnerLogin,
-                  number: config.projectNumber,
+                  projectId: config.projectId,
                   after,
                 });
-                const project = getProjectNode(result);
-                const items = project?.items?.nodes ?? [];
+                const items = result?.node?.items?.nodes ?? [];
                 const match = items.find(
                   (item) => item?.content?.__typename === "PullRequest" && item.content.id === pullRequestNodeId
                 );
@@ -303,7 +195,7 @@ jobs:
                   return match.id;
                 }
 
-                const pageInfo = project?.items?.pageInfo;
+                const pageInfo = result?.node?.items?.pageInfo;
                 if (!pageInfo?.hasNextPage) {
                   return null;
                 }
@@ -368,19 +260,11 @@ jobs:
               return;
             }
 
-            const projectId = await fetchProjectId();
-            if (!projectId) {
-              core.setFailed(
-                `Project not found for ${config.projectOwnerLogin}#${config.projectNumber}`
-              );
-              return;
-            }
-
             const itemId = await findProjectItemId(pullRequestNodeId);
             if (!itemId) {
               core.info("The pull request is not in the target project. Skipping.");
               return;
             }
 
-            await updateProjectStatus(projectId, itemId, targetStatus);
+            await updateProjectStatus(config.projectId, itemId, targetStatus);
             core.info(`Updated project item ${itemId} to ${targetStatus}`);
