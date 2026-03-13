@@ -34,9 +34,10 @@ jobs:
       repository-projects: write
     steps:
       - name: Assign PR author
-        if: github.event_name == 'pull_request' && github.event.action == 'opened'
+        if: github.event_name == 'pull_request' && github.event.action == 'opened' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
         with:
+          github-token: ${{ github.token }}
           script: |
             const issueNumber = context.payload.pull_request?.number;
             const authorLogin = context.payload.pull_request?.user?.login;
@@ -58,6 +59,7 @@ jobs:
       - name: Update project status in sandbox project
         uses: actions/github-script@v7
         with:
+          github-token: ${{ github.token }}
           script: |
             const config = {
               projectOwnerLogin: process.env.PROJECT_OWNER_LOGIN,
@@ -93,6 +95,13 @@ jobs:
 
             function getProjectNode(result) {
               return result?.organization?.projectV2 ?? result?.user?.projectV2 ?? null;
+            }
+
+            function isSameRepositoryPullRequest(payload) {
+              const headRepository = payload.pull_request?.head?.repo?.full_name;
+              const baseRepository = payload.pull_request?.base?.repo?.full_name;
+
+              return Boolean(headRepository && baseRepository && headRepository === baseRepository);
             }
 
             function resolveTargetStatus(payload) {
@@ -314,6 +323,11 @@ jobs:
             }
 
             const payload = context.payload;
+            if (!isSameRepositoryPullRequest(payload)) {
+              core.info("Skipping project status update for a pull request from a different repository.");
+              return;
+            }
+
             const targetStatus = resolveTargetStatus(payload);
 
             if (!targetStatus) {
