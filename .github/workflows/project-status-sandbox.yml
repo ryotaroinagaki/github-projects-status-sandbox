@@ -13,8 +13,9 @@ on:
       - submitted
 
 env:
+  PROJECT_ID: "PVT_kwHOB3a84M4BRnQE"
   PROJECT_OWNER_LOGIN: your-login-or-org
-  PROJECT_NUMBER: "1"
+  PROJECT_NUMBER: "2"
   FINAL_REVIEWER_LOGIN: Ryotaro-Inagaki
   STATUS_FIELD_NAME: Status
   STATUS_IN_PROGRESS: 作業中
@@ -39,6 +40,7 @@ jobs:
           github-token: ${{ github.token }}
           script: |
             const config = {
+              projectId: process.env.PROJECT_ID,
               projectOwnerLogin: process.env.PROJECT_OWNER_LOGIN,
               projectNumber: Number(process.env.PROJECT_NUMBER),
               finalReviewerLogin: process.env.FINAL_REVIEWER_LOGIN,
@@ -60,8 +62,6 @@ jobs:
               return value;
             }
 
-            requireConfig(config.projectOwnerLogin, "PROJECT_OWNER_LOGIN");
-            requireConfig(process.env.PROJECT_NUMBER, "PROJECT_NUMBER");
             requireConfig(config.finalReviewerLogin, "FINAL_REVIEWER_LOGIN");
             requireConfig(config.statusNames.inProgress, "STATUS_IN_PROGRESS");
             requireConfig(config.statusNames.firstReview, "STATUS_FIRST_REVIEW");
@@ -69,6 +69,11 @@ jobs:
             requireConfig(config.statusNames.finalReviewFix, "STATUS_FINAL_REVIEW_FIX");
             requireConfig(config.statusNames.awaitingMerge, "STATUS_AWAITING_MERGE");
             requireConfig(config.statusNames.done, "STATUS_DONE");
+
+            if (!config.projectId) {
+              requireConfig(config.projectOwnerLogin, "PROJECT_OWNER_LOGIN");
+              requireConfig(process.env.PROJECT_NUMBER, "PROJECT_NUMBER");
+            }
 
             function getProjectNode(result) {
               return result?.organization?.projectV2 ?? result?.user?.projectV2 ?? null;
@@ -134,6 +139,10 @@ jobs:
             }
 
             async function fetchProjectId() {
+              if (config.projectId) {
+                return config.projectId;
+              }
+
               const query = `
                 query($login: String!, $number: Int!) {
                   organization(login: $login) {
@@ -192,6 +201,56 @@ jobs:
             }
 
             async function findProjectItemId(pullRequestNodeId) {
+              if (config.projectId) {
+                const query = `
+                  query($projectId: ID!, $after: String) {
+                    node(id: $projectId) {
+                      ... on ProjectV2 {
+                        items(first: 100, after: $after) {
+                          nodes {
+                            id
+                            content {
+                              __typename
+                              ... on PullRequest {
+                                id
+                              }
+                            }
+                          }
+                          pageInfo {
+                            hasNextPage
+                            endCursor
+                          }
+                        }
+                      }
+                    }
+                  }
+                `;
+
+                let after = null;
+
+                while (true) {
+                  const result = await github.graphql(query, {
+                    projectId: config.projectId,
+                    after,
+                  });
+                  const items = result?.node?.items?.nodes ?? [];
+                  const match = items.find(
+                    (item) => item?.content?.__typename === "PullRequest" && item.content.id === pullRequestNodeId
+                  );
+
+                  if (match) {
+                    return match.id;
+                  }
+
+                  const pageInfo = result?.node?.items?.pageInfo;
+                  if (!pageInfo?.hasNextPage) {
+                    return null;
+                  }
+
+                  after = pageInfo.endCursor;
+                }
+              }
+
               const query = `
                 query($login: String!, $number: Int!, $after: String) {
                   organization(login: $login) {
