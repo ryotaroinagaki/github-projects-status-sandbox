@@ -3,9 +3,6 @@ name: Project Status Sandbox
 on:
   pull_request:
     types:
-      - opened
-      - reopened
-      - ready_for_review
       - review_requested
       - closed
   pull_request_review:
@@ -71,10 +68,6 @@ jobs:
 
             function resolveTargetStatus(payload) {
               if (context.eventName === "pull_request") {
-                if (payload.action === "opened" || payload.action === "reopened" || payload.action === "ready_for_review") {
-                  return config.statusNames.inProgress;
-                }
-
                 if (payload.action === "review_requested") {
                   const requestedReviewer = payload.requested_reviewer?.login;
                   const requestedReviewers = (payload.pull_request?.requested_reviewers ?? [])
