@@ -28,19 +28,18 @@ GitHub Projects v2 の `Status` 自動更新を、自分の検証用 Project と
 - `マージ待ち`
 - `完了`
 
-PR 作成時には、PR 作成者が自動で assignee に追加されます。
+PR を作成または reopen した時には、PR 作成者が自動で assignee に追加され、Project の `Status` も `作業中` に更新されます。
 
 ## workflow の設定値
 
 [.github/workflows/project-status-sandbox.yml](/Users/ryotaroinagaki/my-app/github-projects-status-sandbox/.github/workflows/project-status-sandbox.yml) の `env` を書き換えます。
 
-- `PROJECT_OWNER_LOGIN`
-- `PROJECT_NUMBER`
+- `PROJECT_ID`
 - `FINAL_REVIEWER_LOGIN`
 - `STATUS_FIELD_NAME`
 - 各ステータス名
 
-`PROJECT_OWNER_LOGIN` は organization / user のどちらでも使えます。workflow 側で両方を見に行きます。
+現在の sandbox workflow は `PROJECT_ID` を直接使います。
 
 ## secret
 
@@ -49,6 +48,7 @@ PR 作成時には、PR 作成者が自動で assignee に追加されます。
 必要条件:
 
 - GitHub Projects v2 を更新できる token であること
+- PR の assignee を更新できる権限があること
 - `Status` field が single select field であること
 
 ## 2つの GitHub でできるか
@@ -110,8 +110,7 @@ PR 作成時には、PR 作成者が自動で assignee に追加されます。
 
 書き換える値:
 
-- `PROJECT_OWNER_LOGIN`: 検証用 Project の owner login
-- `PROJECT_NUMBER`: 検証用 Project の number
+- `PROJECT_ID`: 検証用 Project の node ID
 - `FINAL_REVIEWER_LOGIN`: 最終レビュワーにする login。sandbox の既定値は `Ryotaro-Inagaki`
 
 ### 3. PR を Project に入れる
