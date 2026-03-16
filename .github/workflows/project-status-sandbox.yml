@@ -3,15 +3,9 @@ name: Project Status Sandbox
 on:
   pull_request:
     types:
-<<<<<<< Updated upstream
-=======
       - opened
       - reopened
-<<<<<<< Updated upstream
       - ready_for_review
-=======
->>>>>>> Stashed changes
->>>>>>> Stashed changes
       - review_requested
       - closed
   pull_request_review:
@@ -77,17 +71,14 @@ jobs:
 
             function resolveTargetStatus(payload) {
               if (context.eventName === "pull_request") {
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-                if (payload.action === "opened" || payload.action === "reopened" || payload.action === "ready_for_review") {
-=======
-                if (payload.action === "opened" || payload.action === "reopened") {
->>>>>>> Stashed changes
+                if (
+                  payload.action === "opened" ||
+                  payload.action === "reopened" ||
+                  payload.action === "ready_for_review"
+                ) {
                   return config.statusNames.inProgress;
                 }
 
->>>>>>> Stashed changes
                 if (payload.action === "review_requested") {
                   const requestedReviewer = payload.requested_reviewer?.login;
                   const requestedReviewers = (payload.pull_request?.requested_reviewers ?? [])
@@ -134,37 +125,6 @@ jobs:
               return null;
             }
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-            async function fetchProjectId() {
-              if (config.projectId) {
-                return config.projectId;
-              }
-
-              const query = `
-                query($login: String!, $number: Int!) {
-                  organization(login: $login) {
-                    projectV2(number: $number) {
-                      id
-                    }
-                  }
-                  user(login: $login) {
-                    projectV2(number: $number) {
-                      id
-                    }
-                  }
-                }
-              `;
-
-              const result = await github.graphql(query, {
-                login: config.projectOwnerLogin,
-                number: config.projectNumber,
-              });
-              const project = getProjectNode(result);
-
-              return project?.id ?? null;
-=======
             function shouldAssignPullRequestAuthor(payload) {
               return (
                 context.eventName === "pull_request" &&
@@ -199,10 +159,8 @@ jobs:
               });
 
               core.info(`Assigned pull request author ${authorLogin} to PR #${issueNumber}.`);
->>>>>>> Stashed changes
             }
 
->>>>>>> Stashed changes
             async function fetchStatusField(projectId) {
               const query = `
                 query($projectId: ID!) {
