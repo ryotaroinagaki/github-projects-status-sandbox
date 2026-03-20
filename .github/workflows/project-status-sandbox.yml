@@ -26,7 +26,43 @@ env:
 jobs:
   update-status:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
     steps:
+      - name: Assign pull request author
+        if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'reopened')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const payload = context.payload;
+            const owner = payload.repository?.owner?.login;
+            const repo = payload.repository?.name;
+            const issueNumber = payload.pull_request?.number;
+            const authorLogin = payload.pull_request?.user?.login;
+            const assignees = (payload.pull_request?.assignees ?? [])
+              .map((assignee) => assignee?.login)
+              .filter(Boolean);
+
+            if (!owner || !repo || !issueNumber || !authorLogin) {
+              core.setFailed("Missing repository or pull request data required to assign the author.");
+              return;
+            }
+
+            if (assignees.includes(authorLogin)) {
+              core.info(`Pull request author ${authorLogin} is already assigned.`);
+              return;
+            }
+
+            await github.rest.issues.addAssignees({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              assignees: [authorLogin],
+            });
+
+            core.info(`Assigned pull request author ${authorLogin} to PR #${issueNumber}.`);
+
       - name: Generate GitHub App token
         id: generate-token
         uses: actions/create-github-app-token@v1
@@ -34,9 +70,8 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
 
-      - name: Update project status in sandbox project
+      - name: Update project status
         uses: actions/github-script@v7
         with:
           github-token: ${{ steps.generate-token.outputs.token }}
