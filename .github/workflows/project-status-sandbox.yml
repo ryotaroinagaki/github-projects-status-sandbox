@@ -169,42 +169,6 @@ jobs:
               return null;
             }
 
-            function shouldAssignPullRequestAuthor(payload) {
-              return (
-                context.eventName === "pull_request" &&
-                (payload.action === "opened" || payload.action === "reopened")
-              );
-            }
-
-            async function assignPullRequestAuthor(payload) {
-              const owner = payload.repository?.owner?.login;
-              const repo = payload.repository?.name;
-              const issueNumber = payload.pull_request?.number;
-              const authorLogin = payload.pull_request?.user?.login;
-              const assignees = (payload.pull_request?.assignees ?? [])
-                .map((assignee) => assignee?.login)
-                .filter(Boolean);
-
-              if (!owner || !repo || !issueNumber || !authorLogin) {
-                core.setFailed("Missing repository or pull request data required to assign the author.");
-                return;
-              }
-
-              if (assignees.includes(authorLogin)) {
-                core.info(`Pull request author ${authorLogin} is already assigned.`);
-                return;
-              }
-
-              await github.rest.issues.addAssignees({
-                owner,
-                repo,
-                issue_number: issueNumber,
-                assignees: [authorLogin],
-              });
-
-              core.info(`Assigned pull request author ${authorLogin} to PR #${issueNumber}.`);
-            }
-
             async function fetchStatusField(projectId) {
               const query = `
                 query($projectId: ID!) {
@@ -329,10 +293,6 @@ jobs:
             if (!isSameRepositoryPullRequest(payload)) {
               core.info("Skipping project status update for a pull request from a different repository.");
               return;
-            }
-
-            if (shouldAssignPullRequestAuthor(payload)) {
-              await assignPullRequestAuthor(payload);
             }
 
             const targetStatus = resolveTargetStatus(payload);
