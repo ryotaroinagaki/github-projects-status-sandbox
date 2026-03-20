@@ -27,10 +27,17 @@ jobs:
   update-status:
     runs-on: ubuntu-latest
     steps:
+      - name: Generate GitHub App token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Update project status in sandbox project
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.PROJECTS_TOKEN }}
+          github-token: ${{ steps.generate-token.outputs.token }}
           script: |
             const config = {
               projectId: process.env.PROJECT_ID,
